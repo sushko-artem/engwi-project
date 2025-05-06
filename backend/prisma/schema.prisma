@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(uuid())
+  name        String
+  email       String       @unique
+  password    String?
+  collections Collection[]
+  roles       Role[]
+  token       Token[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Collection {
+  id        String   @id @default(uuid())
+  name      String
+  cards     Card[]
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, name])
+  @@index([userId, name])
+  @@map("collections")
+}
+
+model Card {
+  id           String     @id @default(uuid())
+  word         String     @db.VarChar(255)
+  translation  String     @db.VarChar(255)
+  collectionId String     @map("collection_id")
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([collectionId])
+  @@map("cards")
+}
+
+model Token {
+  token     String   @unique
+  exp       DateTime
+  userAgent String   @map("user_agent")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+
+  @@unique([userId, userAgent], name: "user_device_unique")
+  @@map("tokens")
+}
+
+enum Role {
+  USER
+  SUPERUSER
+}
