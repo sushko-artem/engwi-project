@@ -32,7 +32,33 @@ const FormSchema = z
 type FormSchema = z.infer<typeof FormSchema>;
 
 function onSubmit(data: FormSchema) {
-  console.log(data);
+  const registerData = {
+    name: data.name,
+    email: data.email,
+    password: data.password,
+  };
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(registerData),
+    credentials: "include",
+  })
+    .then((response) => {
+      if (!response.ok) {
+        return response.json().then((err) => {
+          throw new Error(err.message);
+        });
+      }
+      return response.json();
+    })
+    .then((data) => {
+      console.log("Success:", data);
+    })
+    .catch((error) => {
+      console.error("Error:", error.message);
+    });
 }
 
 export function SignUpForm() {

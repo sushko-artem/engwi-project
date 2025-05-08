@@ -13,7 +13,7 @@ import { CardsRepoModule } from './cards-repo/cards-repo.module';
     UserModule,
     PrismaModule,
     AuthModule,
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env.local'] }),
     TokensModule,
     CardsRepoModule,
   ],

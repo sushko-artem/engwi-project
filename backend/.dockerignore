@@ -1,0 +1,8 @@
+node_modules
+test
+Dockerfile
+.dockerignore
+.gitignore
+.prettierrc
+# eslint.config.mjs
+# nest-cli.json
