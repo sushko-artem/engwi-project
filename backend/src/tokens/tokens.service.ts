@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { IjwtPayload } from '../shared/interfaces/jwtPayloadInterface';
 import ms from 'ms';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class TokensService {
@@ -24,30 +25,49 @@ export class TokensService {
     return { accessToken, refreshToken };
   }
 
-  async verifyRefreshToken(refreshToken: string): Promise<IjwtPayload | null> {
-    return this.jwtService
-      .verifyAsync<IjwtPayload>(refreshToken, {
+  async verifyRefreshToken(refreshToken: string): Promise<IjwtPayload> {
+    try {
+      return await this.jwtService.verifyAsync<IjwtPayload>(refreshToken, {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      })
-      .catch((err) => {
-        this.logger.error(err);
-        return null;
       });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        this.logger.error(`Refresh token verification failed: ${err.message}`);
+
+        if (err.name === 'TokenExpiredError') {
+          throw new UnauthorizedException('Refresh token expired');
+        }
+        if (err.name === 'JsonWebTokenError') {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+      }
+      throw new InternalServerErrorException('Failed to verify token');
+    }
   }
 
-  async validateRefreshToken(token: string, userId: string): Promise<boolean> {
-    const dbToken = await this.prisma.token
-      .findUnique({
+  async validateRefreshToken(token: string, userId: string): Promise<void> {
+    try {
+      const dbToken = await this.prisma.token.findUnique({
         where: {
           token,
           userId,
         },
-      })
-      .catch((err) => {
-        this.logger.error(err);
-        return null;
       });
-    return !!dbToken && dbToken.exp > new Date();
+      if (!dbToken) {
+        throw new UnauthorizedException('Refresh token not found in database');
+      }
+      if (dbToken.exp <= new Date()) {
+        throw new UnauthorizedException('Refresh token expired');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        this.logger.error(`Token validation failed: ${err.message}`);
+      }
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new InternalServerErrorException('Database error');
+      }
+      throw err;
+    }
   }
 
   async saveRefreshTokenToDB(userId: string, refreshToken: string, userAgent: string) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@/shared/ui/button";
 import { Form } from "@/shared/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +11,7 @@ import { Field } from "../ui/form-field";
 import { GoogleAuth } from "../ui/google-auth-button";
 import { AuthLink } from "../ui/link";
 import { BottomAuthLayout } from "../ui/bottom-auth-layout";
+import { postData } from "@/shared/api";
 
 const FormSchema = z
   .object({
@@ -31,37 +33,8 @@ const FormSchema = z
 
 type FormSchema = z.infer<typeof FormSchema>;
 
-function onSubmit(data: FormSchema) {
-  const registerData = {
-    name: data.name,
-    email: data.email,
-    password: data.password,
-  };
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(registerData),
-    credentials: "include",
-  })
-    .then((response) => {
-      if (!response.ok) {
-        return response.json().then((err) => {
-          throw new Error(err.message);
-        });
-      }
-      return response.json();
-    })
-    .then((data) => {
-      console.log("Success:", data);
-    })
-    .catch((error) => {
-      console.error("Error:", error.message);
-    });
-}
-
 export function SignUpForm() {
+  const router = useRouter();
   const form = useForm<FormSchema>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -71,6 +44,29 @@ export function SignUpForm() {
       confirmPassword: "",
     },
   });
+
+  async function onSubmit(data: FormSchema) {
+    try {
+      const response = await postData("/api/auth/register", data);
+      if (response.status === 201) {
+        router.push("/sign-in");
+      }
+    } catch (err) {
+      if (!!err && err instanceof Error) {
+        if (err.cause === 409) {
+          form.setError("email", {
+            type: "custom",
+            message: err.message,
+          });
+        }
+        form.setError("root", {
+          type: "custom",
+          message: err.message,
+        });
+        return <div className="fixed inset-0 z-10 backdrop-blur-[6px]"></div>;
+      }
+    }
+  }
 
   return (
     <AuthFormLayout
@@ -102,6 +98,11 @@ export function SignUpForm() {
               label="Подтвердите пароль"
               placeholder="Подтвердите пароль"
             />
+            {form.formState.errors.root && (
+              <p className="text-red-600 mb-2">
+                {form.formState.errors.root.message}
+              </p>
+            )}
             <Button className="hover:cursor-pointer" type="submit">
               Зарегистрироваться
             </Button>
