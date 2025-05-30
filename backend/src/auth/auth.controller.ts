@@ -1,9 +1,8 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
-  HttpStatus,
+  HttpCode,
   Post,
   Query,
   Req,
@@ -14,7 +13,7 @@ import {
 import { AuthService } from './auth.service';
 import { LoginUserDto, RegisterUserDto } from './DTO';
 import { Request, Response } from 'express';
-import { Public, UserAgent } from '@common/decorators';
+import { Cookie, Public, UserAgent } from '@common/decorators';
 import { ConfigService } from '@nestjs/config';
 import ms from 'ms';
 import { Itokens } from './interfaces';
@@ -30,44 +29,37 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @HttpCode(201)
   async register(@Body() dto: RegisterUserDto) {
-    const user = await this.authService.register(dto);
-    if (!user) {
-      throw new BadRequestException(`Can not register user with credentials ${JSON.stringify(dto)}`);
-    }
-    return { message: 'Created successful' };
+    return await this.authService.register(dto);
   }
 
   @Post('login')
   async login(@Body() dto: LoginUserDto, @Res() response: Response, @UserAgent() userAgent: string) {
     const tokens = await this.authService.login(dto, userAgent);
-    if (!tokens) {
-      throw new BadRequestException(`Can not enter with credentials ${JSON.stringify(dto)}`);
-    }
     this.saveTokensToCookies(tokens, response);
-    return response.status(HttpStatus.OK).json({ message: 'Login successful' });
+    return { message: 'Login successful' };
   }
 
   @Get('logout')
-  async logout(@Res({ passthrough: true }) response: Response, @Req() request: Request) {
-    const refreshToken = request.cookies['refreshToken'] as string;
-    if (!refreshToken) {
-      return { message: 'OK' };
-    }
+  async logout(@Cookie('refreshToken') refreshToken: string, @Res({ passthrough: true }) response: Response) {
     await this.authService.deleteRefreshToken(refreshToken);
     this.deleteTokensFromCookies(response);
     return { message: 'Logged out successfully' };
   }
 
   @Get('refresh')
-  async refresh(@Res() response: Response, @Req() request: Request, @UserAgent() userAgent: string) {
-    const refreshToken = request.cookies['refreshToken'] as string | undefined;
+  async refresh(
+    @Cookie('refreshToken') refreshToken: string,
+    @Res({ passthrough: true }) response: Response,
+    @UserAgent() userAgent: string,
+  ) {
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
     const tokens = await this.authService.refersh(refreshToken, userAgent);
     this.saveTokensToCookies(tokens, response);
-    return response.status(HttpStatus.OK).json({ message: 'Token refreshed' });
+    return { message: 'Token refreshed' };
   }
 
   @Get('success') //TEST PAGE
