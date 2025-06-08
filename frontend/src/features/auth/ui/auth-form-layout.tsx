@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/card";
-import { IAuthLayoutProps } from "../interfaces";
+import { IAuthLayoutProps } from "../shared/interfaces";
 
 export function AuthFormLayout(props: IAuthLayoutProps) {
   return (

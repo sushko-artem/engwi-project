@@ -7,7 +7,7 @@ import {
   FormMessage,
 } from "@/shared/ui/form";
 import { Input } from "@/shared/ui/input";
-import { IFieldProps } from "../interfaces";
+import { IFieldProps } from "../shared/interfaces";
 import { FieldValues } from "react-hook-form";
 
 export const Field = <T extends FieldValues>(props: IFieldProps<T>) => (
